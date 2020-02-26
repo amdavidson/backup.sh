@@ -1,7 +1,7 @@
 ```bash
 #!/usr/bin/env bash
 
-print_ascii () {
+print_logo () {
 cat <<'EOF'
  _                _                     _     
 | |__   __ _  ___| | ___   _ _ __   ___| |__  

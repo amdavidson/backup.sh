@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-print_ascii () {
+print_logo () {
 cat <<'EOF'
  _                _                     _     
 | |__   __ _  ___| | ___   _ _ __   ___| |__  
@@ -92,7 +92,7 @@ case $DESTINATION in
                     backup:/bkup/$(hostname)
                 ;;
             "help")
-                print_ascii
+                print_logo
                 print_help
                 ;;
             *)
@@ -143,7 +143,7 @@ case $DESTINATION in
 
                 ;;
             "help")
-                print_ascii
+                print_logo
                 print_help
                 ;;
             *)
@@ -154,7 +154,7 @@ case $DESTINATION in
         ;;
     *)
         if [[ -z $DESTINATION && $ACTION == "help" ]]; then
-            print_ascii
+            print_logo
             print_help
         else
             echo "Destination: $DESTINATION not recognized."
