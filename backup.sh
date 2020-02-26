@@ -50,6 +50,16 @@ DESTINATION=$2
 ###
 source ~/.env 
 
+###
+# For the borg backup to work properly, the backup host should be 
+# configured in `$HOME/.ssh/config`:
+#     Host backup
+#        Hostname backup.hostname
+#        Port 22
+#        User backupuser
+###
+
+
 case $DESTINATION in
     "royal")
         case $ACTION in
