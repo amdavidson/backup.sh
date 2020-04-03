@@ -64,10 +64,9 @@ case $DESTINATION in
     "royal")
         case $ACTION in
             "backup")
-                echo "$(date) starting backup to $DESTINATION"
-
                 if on_ac_power; then
-                    borg create --progress -s -v \
+                    borg create  \
+                        --exclude $HOME/backups \
                         --exclude $HOME/tmp \
                         --exclude $HOME/Downloads \
                         --exclude $HOME/Desktop \
@@ -78,8 +77,9 @@ case $DESTINATION in
                 else
                     echo "Not plugged in, canceling backup."
                 fi
-
-                echo "$(date) finished backup to $DESTINATION"
+                ;;
+            "check")
+                borg check backup:/bkup/$(hostname)
                 ;;
             "list")
                 borg list backup:/bkup/$(hostname)
@@ -114,11 +114,10 @@ case $DESTINATION in
     "wasabi")
         case $ACTION in
             "backup")
-                echo "$(date) starting backup to $DESTINATION"
-
                 if on_ac_power; then
                     restic backup \
-                        --verbose \
+                        --quiet \
+                        --exclude $HOME/backups \
                         --exclude $HOME/tmp \
                         --exclude $HOME/Desktop \
                         --exclude $HOME/Downloads \
@@ -129,8 +128,9 @@ case $DESTINATION in
                 else
                     echo "Not plugged in, canceling backup."
                 fi
-                
-                echo "$(date) finished backup to $DESTINATION"
+                ;;
+            "check")
+                restic check
                 ;;
             "list")
                 restic snapshots
@@ -139,7 +139,6 @@ case $DESTINATION in
                 echo """
                 Pruning $DESTINATION backups...
                 Keeping:
-                - 4  hourly backups
                 - 90 daily backups
                 - 12 monthly backups
                 - 5  yearly backups
