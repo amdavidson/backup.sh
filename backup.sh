@@ -23,9 +23,12 @@ print_help () {
     backup        - initiate a backup of the home folder to the destination
     check         - check repository for consistency
     find          - find a file by a string in the repository (requires input)
+                    ex: backup.sh find s3 critical_file.doc
     help          - print this help
     init          - intiialize a new backup repository
     prune         - prune old backups on the destination
+    restore       - restores file from repository (requires input)
+                    ex: backup.sh restore s3 latest --target=/tmp/restore --include=/home/user/Documents
     snapshots     - list backups on the destination
     stats         - print statistics about the backup repository
     unlock        - unlock a locked repository - use for stale locks
@@ -128,6 +131,10 @@ else
                 --verbose \
                 find $INPUT 
             ;;
+        "help")
+            print_logo
+            print_help
+            ;;
         "init")
             echo "Initializing backup repository at $DESTINATION" | print_and_log
             /usr/bin/restic \
@@ -136,13 +143,13 @@ else
                 --verbose \
                 init | print_and_log
             ;;
-        "unlock")
-            echo "Unlocking backup repository at $DESTINATION" | print_and_log
+        "restore")
+            echo "Restoring from $DESTINATION, $INPUT" | print_and_log
             /usr/bin/restic \
                 -r "$BACKUP_REPOSITORY" \
                 -p "$BACKUP_PASSWORD" \
                 --verbose \
-                unlock | print_and_log
+                restore $INPUT | print_and_log 
             ;;
         "snapshots")
             echo "Listing snapshots on $DESTINATION"
@@ -184,9 +191,13 @@ else
                 echo "Not plugged in, canceling prune."
             fi
             ;;
-        "help")
-            print_logo
-            print_help
+        "unlock")
+            echo "Unlocking backup repository at $DESTINATION" | print_and_log
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                unlock | print_and_log
             ;;
         *)
             echo "Action: $ACTION not recognized."
