@@ -8,8 +8,10 @@ cat <<'EOF'
 | |_) | (_| | (__|   <| |_| | |_) |\__ \ | | |
 |_.__/ \__,_|\___|_|\_\\__,_| .__(_)___/_| |_|
                             |_|               
+
+A wrapper around restic to help control configuration.
 EOF
-# Copyright (c) 2020 Andrew Davidson
+# Copyright (c) 2021 Andrew Davidson
 }
 
 print_help () {
@@ -18,16 +20,41 @@ print_help () {
     backup.sh 'command' 'destination'
     
     Supported Commands:
+    init          - intiialize a new backup repository
     backup        - initiate a backup of the home folder to the destination
-    list          - list backups on the destination
+    check         - check repository for consistency
+    snapshots     - list backups on the destination
     prune         - prune old backups on the destination
+    stats         - print statistics about the backup repository
+    help          - print this help
+
+    Required Configuration: 
+    \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.repo 
+    - Define the repository path in this file
+
+    \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.pwd
+    - Define the repository password in this file
+
+    \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.paths
+    - list of paths to be backed up
+
+    \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.exclude
+    - list of paths to be excluded
+
+    \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.keys
+    - OPTIONAL: bash exports of required keys for s3/b2 backups
+
+    \$XDG_DATA_HOME/backup.sh/\$DESTINATION/\$DESTINATION.log
+    - empty file for logging
+
     
-    Supported destinations:
-    royal         - local borg/SFTP backup to Royal
-    wasabi        - remote restic backup to Wasabi
+
     """
 }
 
+print_and_log () {
+    /usr/bin/ts "%Y-%m-%dT%H:%M:%S" | /usr/bin/tee -a $BACKUP_LOG
+}
 
 set -o errexit
 set -o pipefail
@@ -35,140 +62,124 @@ set -o pipefail
 ACTION=$1
 DESTINATION=$2
 
+if [[ -z $DESTINATION && $ACTION == "help" ]]; then
+    print_logo
+    print_help
+elif [[ -z $DESTINATION ]]; then
+    echo "Destination must not be blank"
+    print_help
+else
 
-###
-# ~/.env should contain these variables:
-#
-#    ## Borg Royal Environment
-#    export BORG_PASSPHRASE=
-#
-#    ## Restic Wasabi Environment
-#    export AWS_ACCESS_KEY_ID=
-#    export AWS_SECRET_ACCESS_KEY=
-#    export RESTIC_REPOSITORY=s3:s3.wasabisys.com/backup
-#    export RESTIC_PASSWORD=
-###
-source ~/.env 
+    if [[ -f "$XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.repo" ]]; then
+        BACKUP_REPOSITORY=$(cat $XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.repo)
+    else 
+        echo "Must configure repository at $XDG_CONFIG_HOME/backup.sh/$DESTINATION"
+        print_help
+        exit 2
+    fi
+    if [[ -f "$XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.keys" ]]; then
+        source "$XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.keys"
+    fi
+    BACKUP_PASSWORD="$XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.pwd"
+    BACKUP_EXCLUDE_FILE="$XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.exclude"
+    BACKUP_PATHS="$XDG_CONFIG_HOME/backup.sh/$DESTINATION/$DESTINATION.paths"
+    BACKUP_LOG="$XDG_DATA_HOME/backup.sh/$DESTINATION/$DESTINATION.log"
 
-###
-# For the borg backup to work properly, the backup host should be 
-# configured in `$HOME/.ssh/config`:
-#     Host backup
-#        Hostname backup.hostname
-#        Port 22
-#        User backupuser
-###
+    if [[ -f "/sys/class/power_supply/AC/online" ]]; then
+        AC_POWER=$(cat /sys/class/power_supply/AC/online)
+    else
+        AC_POWER=1
+    fi
 
 
-case $DESTINATION in
-    "royal")
-        case $ACTION in
-            "backup")
-                if on_ac_power; then
-                    borg create  \
-                        --exclude $HOME/backups \
-                        --exclude $HOME/tmp \
-                        --exclude $HOME/Downloads \
-                        --exclude $HOME/Desktop \
-                        --exclude $HOME/.cache \
-                        --exclude $HOME/.local/gnome-boxes \
-                        backup:/bkup/$(hostname)::$(date '+%s') \
-                        $HOME
-                else
-                    echo "Not plugged in, canceling backup."
-                fi
-                ;;
-            "check")
-                borg check backup:/bkup/$(hostname)
-                ;;
-            "list")
-                borg list backup:/bkup/$(hostname)
-                ;;
-            "prune")
+    case $ACTION in
+        "backup")
+            if [[ $AC_POWER == 1 ]]; then
+                echo "backing up to $DESTINATION." | print_and_log
+                /usr/bin/restic \
+                    -r "$BACKUP_REPOSITORY" \
+                    -p "$BACKUP_PASSWORD" \
+                    --cleanup-cache \
+                    --exclude-caches \
+                    --exclude-file="$BACKUP_EXCLUDE_FILE" \
+                    --files-from="$BACKUP_PATHS" \
+                    --verbose \
+                    backup | print_and_log 
+            else
+                echo "not plugged in, canceling backup."
+            fi
+            ;;
+        "check")
+            echo "Checking backup repository at $DESTINATION" | print_and_log
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                check | print_and_log
+            ;;
+        "init")
+            echo "Initializing backup repository at $DESTINATION" | print_and_log
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                init | print_and_log
+            ;;
+        "unlock")
+            echo "Unlocking backup repository at $DESTINATION" | print_and_log
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                unlock | print_and_log
+            ;;
+        "snapshots")
+            echo "Listing snapshots on $DESTINATION"
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                snapshots 
+            ;;
+        "stats")
+            echo "Printing statistics for $DESTINATION"
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                stats 
+            ;;
+        "prune")
+            if [[ $AC_POWER == 1 ]]; then
                 echo """
-                Pruning $DESTINATION backups...
+                Pruning backups at $DESTINATION ...
                 Keeping:
                 - 24 hourly backups
                 - 90 daily backups
                 - 12 monthly backups
                 - 5  yearly backups
-                """
-                borg prune \
-                    --stats --list \
-                    --keep-hourly 24 \
-                    --keep-daily 90 \
-                    --keep-monthly 12 \
-                    --keep-yearly 5 \
-                    backup:/bkup/$(hostname)
-                ;;
-            "help")
-                print_logo
-                print_help
-                ;;
-            *)
-                echo "Action: $ACTION not recognized."
-                print_help
-                ;;
-        esac
-        ;;
-    "wasabi")
-        case $ACTION in
-            "backup")
-                if on_ac_power; then
-                    restic backup \
-                        --quiet \
-                        --exclude $HOME/backups \
-                        --exclude $HOME/tmp \
-                        --exclude $HOME/Desktop \
-                        --exclude $HOME/Downloads \
-                        --exclude $HOME/.cache \
-                        --exclude $HOME/.cargo \
-                        --exclude $HOME/.local/share/gnome-boxes \
-                        $HOME
-                else
-                    echo "Not plugged in, canceling backup."
-                fi
-                ;;
-            "check")
-                restic check
-                ;;
-            "list")
-                restic snapshots
-                ;;
-            "prune")
-                echo """
-                Pruning $DESTINATION backups...
-                Keeping:
-                - 90 daily backups
-                - 12 monthly backups
-                - 5  yearly backups
-                """
-
-                restic forget --prune \
-                    --keep-hourly 4 \
-                    --keep-daily 90 \
-                    --keep-monthly 12 \
-                    --keep-yearly 5
-
-                ;;
-            "help")
-                print_logo
-                print_help
-                ;;
-            *)
-                echo "Action: $ACTION not recognized."
-                print_help
-                ;;
-        esac
-        ;;
-    *)
-        if [[ -z $DESTINATION && $ACTION == "help" ]]; then
+                """ | print_and_log
+                /usr/bin/restic \
+                    -r "$BACKUP_REPOSITORY" \
+                    -p "$BACKUP_PASSWORD" \
+                    --verbose \
+                    --prune \
+                    --keep-hourly=24 \
+                    --keep-daily=90 \
+                    --keep-monthly=12 \
+                    --keep-yearly=5 \
+                    forget | print_and_log
+            else
+                echo "Not plugged in, canceling prune."
+            fi
+            ;;
+        "help")
             print_logo
             print_help
-        else
-            echo "Destination: $DESTINATION not recognized."
+            ;;
+        *)
+            echo "Action: $ACTION not recognized."
             print_help
-        fi
-        ;;
-esac
-
+            ;;
+    esac
+fi
