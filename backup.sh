@@ -17,17 +17,18 @@ EOF
 print_help () {
     echo -e """
     Usage:
-    backup.sh 'command' 'destination'
+    backup.sh 'command' 'destination' 'input'
     
     Supported Commands:
-    init          - intiialize a new backup repository
     backup        - initiate a backup of the home folder to the destination
     check         - check repository for consistency
-    snapshots     - list backups on the destination
+    find          - find a file by a string in the repository (requires input)
+    help          - print this help
+    init          - intiialize a new backup repository
     prune         - prune old backups on the destination
+    snapshots     - list backups on the destination
     stats         - print statistics about the backup repository
     unlock        - unlock a locked repository - use for stale locks
-    help          - print this help
 
     Required Configuration: 
     \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.repo 
@@ -62,6 +63,7 @@ set -o pipefail
 
 ACTION=$1
 DESTINATION=$2
+INPUT="${@:3}"
 
 if [[ -z $DESTINATION && $ACTION == "help" ]]; then
     print_logo
@@ -117,6 +119,14 @@ else
                 -p "$BACKUP_PASSWORD" \
                 --verbose \
                 check | print_and_log
+            ;;
+        "find")
+            echo "Searching for $INPUT at $DESTINATION" 
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                find $INPUT 
             ;;
         "init")
             echo "Initializing backup repository at $DESTINATION" | print_and_log
