@@ -26,6 +26,7 @@ print_help () {
     snapshots     - list backups on the destination
     prune         - prune old backups on the destination
     stats         - print statistics about the backup repository
+    unlock        - unlock a locked repository - use for stale locks
     help          - print this help
 
     Required Configuration: 
