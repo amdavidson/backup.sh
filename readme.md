@@ -16,16 +16,21 @@ EOF
 print_help () {
     echo -e """
     Usage:
-    backup.sh 'command' 'destination'
+    backup.sh 'command' 'destination' 'input'
     
     Supported Commands:
-    init          - intiialize a new backup repository
     backup        - initiate a backup of the home folder to the destination
     check         - check repository for consistency
-    snapshots     - list backups on the destination
-    prune         - prune old backups on the destination
-    stats         - print statistics about the backup repository
+    find          - find a file by a string in the repository (requires input)
+                    ex: backup.sh find s3 critical_file.doc
     help          - print this help
+    init          - intiialize a new backup repository
+    prune         - prune old backups on the destination
+    restore       - restores file from repository (requires input)
+                    ex: backup.sh restore s3 latest --target=/tmp/restore --include=/home/user/Documents
+    snapshots     - list backups on the destination
+    stats         - print statistics about the backup repository
+    unlock        - unlock a locked repository - use for stale locks
 
     Required Configuration: 
     \$XDG_CONFIG_HOME/backup.sh/\$DESTINATION/\$DESTINATION.repo 
