@@ -26,6 +26,8 @@ print_help () {
                     ex: backup.sh find s3 critical_file.doc
     help          - print this help
     init          - intiialize a new backup repository
+    mount         - mount repository as a local file system
+                    ex: backup.sh mount s3 /mnt/restic
     prune         - prune old backups on the destination
     restore       - restores file from repository (requires input)
                     ex: backup.sh restore s3 latest --target=/tmp/restore --include=/home/user/Documents
@@ -142,6 +144,14 @@ else
                 -p "$BACKUP_PASSWORD" \
                 --verbose \
                 init | print_and_log
+            ;;
+        "mount")
+            echo "Mounting backup repository $DESTINATION at $INPUT" | print_and_log
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                mount "$INPUT" | print_and_log
             ;;
         "restore")
             echo "Restoring from $DESTINATION, $INPUT" | print_and_log
