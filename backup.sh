@@ -22,6 +22,7 @@ print_help () {
     Supported Commands:
     backup        - initiate a backup of the home folder to the destination
     check         - check repository for consistency
+    clean         - clean (prune) extra files from the repository
     find          - find a file by a string in the repository (requires input)
                     ex: backup.sh find s3 critical_file.doc
     help          - print this help
@@ -209,6 +210,13 @@ else
                 --verbose \
                 unlock | print_and_log
             ;;
+        "clean")
+            echo "Cleaning repository at $DESTINATION" | print_and_log
+            /usr/bin/restic \
+                -r "$BACKUP_REPOSITORY" \
+                -p "$BACKUP_PASSWORD" \
+                --verbose \
+                prune | print_and_log
         *)
             echo "Action: $ACTION not recognized."
             print_help
