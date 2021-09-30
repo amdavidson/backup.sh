@@ -217,6 +217,7 @@ else
                 -p "$BACKUP_PASSWORD" \
                 --verbose \
                 prune | print_and_log
+            ;;
         *)
             echo "Action: $ACTION not recognized."
             print_help
