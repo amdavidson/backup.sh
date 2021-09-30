@@ -1,0 +1,11 @@
+[Unit]
+Description=Run backup.sh as configured
+
+[Service]
+Environment=XDG_CONFIG_HOME=/home/FIXME/.config
+Environment=XDG_DATA_HOME=/home/FIXME/.local/share
+Type=simple
+ExecStart=/home/FIXME/.local/share/backup.sh/backup.sh backup FIXME
+
+[Install]
+WantedBy=default.target
